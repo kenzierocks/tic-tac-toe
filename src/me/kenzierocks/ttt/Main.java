@@ -21,7 +21,7 @@ public class Main extends Application {
 		root = loader.load();
 		Controller controller = loader.getController();
 		root.autosize();
-		Scene scene = new Scene(root, root.prefWidth(-1), root.prefHeight(-1));
+		Scene scene = new Scene(root);
 
 		stage.setTitle("Tic-Tac-Toe");
 		stage.setScene(scene);
