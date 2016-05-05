@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1" fx:controller="me.kenzierocks.ttt.Controller">
+   <center>
+      <GridPane fx:id="gameplayPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" style="-fx-border-color: black;">
+        <columnConstraints>
+          <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+          <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+        </columnConstraints>
+        <rowConstraints>
+          <RowConstraints minHeight="10.0" prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES" />
+          <RowConstraints minHeight="10.0" prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES" />
+          <RowConstraints minHeight="10.0" prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES" />
+        </rowConstraints>
+         <children>
+            <Label GridPane.columnIndex="2" GridPane.rowIndex="2">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.columnIndex="1" GridPane.rowIndex="2">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.rowIndex="2">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.columnIndex="2" GridPane.rowIndex="1">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.columnIndex="2">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.columnIndex="1" GridPane.rowIndex="1">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.rowIndex="1">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label GridPane.columnIndex="1">
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+            <Label>
+               <font>
+                  <Font size="90.0" />
+               </font>
+            </Label>
+         </children>
+         <cursor>
+            <Cursor fx:constant="HAND" />
+         </cursor>
+      </GridPane>
+   </center>
+   <top>
+      <MenuBar BorderPane.alignment="CENTER">
+        <menus>
+          <Menu mnemonicParsing="false" text="File">
+            <items>
+              <MenuItem mnemonicParsing="false" onAction="#restart" text="Restart" />
+                  <MenuItem mnemonicParsing="false" onAction="#reset" text="Reset" />
+                  <SeparatorMenuItem mnemonicParsing="false" />
+                  <MenuItem mnemonicParsing="false" onAction="#quit" text="Quit" />
+            </items>
+          </Menu>
+        </menus>
+      </MenuBar>
+   </top>
+   <left>
+      <VBox alignment="TOP_CENTER" prefHeight="600.0" prefWidth="166.0" style="-fx-border-color: black;" BorderPane.alignment="CENTER">
+         <children>
+            <Label text="Current Turn: ">
+               <VBox.margin>
+                  <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+               </VBox.margin>
+            </Label>
+            <Label id="player-label" fx:id="currentPlayerLabel">
+               <font>
+                  <Font size="32.0" />
+               </font>
+               <VBox.margin>
+                  <Insets />
+               </VBox.margin>
+            </Label>
+            <HBox alignment="CENTER" VBox.vgrow="NEVER">
+               <children>
+                  <Label fx:id="xScore" />
+                  <Separator opacity="0.0" orientation="VERTICAL" HBox.hgrow="ALWAYS" />
+                  <Label fx:id="oScore" />
+               </children>
+            </HBox>
+         </children>
+      </VBox>
+   </left>
+</BorderPane>
