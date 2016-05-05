@@ -23,7 +23,7 @@ public class Main extends Application {
 		root.autosize();
 		Scene scene = new Scene(root, root.prefWidth(-1), root.prefHeight(-1));
 
-		stage.setTitle("Tick-Tack-Toe");
+		stage.setTitle("Tic-Tac-Toe");
 		stage.setScene(scene);
 		Platform.setImplicitExit(false);
 		stage.setOnCloseRequest(event -> {
