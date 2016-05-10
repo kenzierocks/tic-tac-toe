@@ -10,7 +10,6 @@ import javafx.stage.Stage;
 public class Main extends Application {
 
     public static void main(String[] args) {
-        System.err.println(PacketFormat.fromString("IBZCJDFS").toString());
         launch(args);
     }
 

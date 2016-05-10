@@ -1,5 +1,10 @@
 package me.kenzierocks.ttt.packets;
 
-public class Packet {
+import java.io.DataOutputStream;
+import java.io.IOException;
+
+public interface Packet {
+
+    void write(DataOutputStream stream) throws IOException;
 
 }

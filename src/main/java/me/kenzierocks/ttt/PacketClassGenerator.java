@@ -25,6 +25,8 @@ public final class PacketClassGenerator {
     private static final String JAVADOC = "Generated from $L\n\t on "
             + ZonedDateTime.now().withZoneSameInstant(ZoneOffset.UTC)
                     .format(DateTimeFormatter.RFC_1123_DATE_TIME);
+    private static final String AUTO_CONSTRUCTOR_WARNING =
+            "@deprecated This constructor is only for automatic creation. Do not call.\n";
 
     public static void main(String[] args) {
         try (DirectoryStream<Path> stream =
@@ -37,13 +39,21 @@ public final class PacketClassGenerator {
     }
 
     public static void createPacketClass(Path source) {
+        try {
+            PacketData parsed = PacketData.read(source);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
         TypeSpec.Builder type = TypeSpec
                 .classBuilder(
                         noExtension(source.getFileName().toString()) + "Packet")
                 .addModifiers(PUBLIC, FINAL);
 
-        type.addMethod(
-                MethodSpec.constructorBuilder().addModifiers(PUBLIC).build());
+        type.addMethod(MethodSpec.constructorBuilder()
+                .addJavadoc(AUTO_CONSTRUCTOR_WARNING)
+                .addAnnotation(Deprecated.class).addModifiers(PUBLIC)
+                .addCode("super();\n").build());
 
         JavaFile fileWriter = JavaFile.builder(PACKAGE, type.build())
                 .indent("....".replace('.', ' ')).skipJavaLangImports(true)
