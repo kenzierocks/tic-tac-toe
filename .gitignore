@@ -25,6 +25,8 @@ build/
 # custom
 .build/
 .test
+c2s/
+s2c/
 
 # running stuff
 /run/

@@ -6,8 +6,10 @@ import java.util.Map;
 
 public enum PacketPart {
 
-    INT("I"), SHORT("S"), LONG("J"), BYTE("B"), FLOAT("F"), DOUBLE("D"),
-    CHAR("C"), BOOLEAN("Z");
+    INT("I", int.class), SHORT("S", short.class), LONG("J", long.class),
+    BYTE("B", byte.class), FLOAT("F", float.class), DOUBLE("D", double.class),
+    CHAR("C", char.class), BOOLEAN("Z", boolean.class),
+    STRING("Ljava/lang/String;", String.class);
 
     private static final Map<String, PacketPart> PART_MAP;
     static {
@@ -26,14 +28,20 @@ public enum PacketPart {
         return part;
     }
 
+    private final Class<?> javaClass;
     private final String bytecodeId;
 
-    PacketPart(String id) {
+    PacketPart(String id, Class<?> javaClass) {
         this.bytecodeId = id;
+        this.javaClass = javaClass;
     }
 
     public String getBytecodeId() {
         return bytecodeId;
+    }
+
+    public Class<?> getJavaType() {
+        return javaClass;
     }
 
     @Override
