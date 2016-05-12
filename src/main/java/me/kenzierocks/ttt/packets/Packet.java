@@ -10,6 +10,8 @@ public interface Packet {
 
     interface Server extends Packet {
     }
+    
+    int getId();
 
     void write(DataOutputStream stream) throws IOException;
 

@@ -1,5 +1,6 @@
 package me.kenzierocks.ttt.packets;
 
+import static com.google.common.base.Preconditions.checkState;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.lang.model.element.Modifier.PUBLIC;
@@ -14,6 +15,7 @@ import java.nio.file.Paths;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,22 +46,29 @@ public final class PacketClassGenerator {
                     .format(DateTimeFormatter.RFC_1123_DATE_TIME);
 
     public static void main(String[] args) {
+        Map<Integer, PacketData> data = new HashMap<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(SOURCE_DIR,
                 path -> path.toString().endsWith(".packet"))) {
-            stream.forEach(PacketClassGenerator::createPacketClass);
+            stream.forEach(p -> {
+                PacketData parsed;
+                try {
+                    parsed = PacketData.read(p);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;
+                }
+                Integer id = parsed.getId();
+                checkState(!data.containsKey(id), "Already seen ID %s as %s",
+                        id, data.get(id));
+                data.put(id, parsed);
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
+        data.values().forEach(PacketClassGenerator::createPacketClass);
     }
 
-    public static void createPacketClass(Path source) {
-        PacketData parsed;
-        try {
-            parsed = PacketData.read(source);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
+    public static void createPacketClass(PacketData parsed) {
         String appendPackage =
                 parsed.getDirectionPipe() == Pipe.CLIENT_TO_SERVER ? "c2s"
                         : "s2c";
@@ -67,15 +76,17 @@ public final class PacketClassGenerator {
         Map<String, TypeName> fields = parsed.getFields().entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
                         e -> TypeName.get(e.getValue().getJavaType())));
-        String sourceFile = SOURCE_DIR.relativize(source).toString();
-        String nameBase = noExtension(source.getFileName().toString());
-        writePacketClass(parsed.getDirectionPipe(), sourceFile, nameBase,
-                fields, parsed.getFields(), constructedPackage);
+        String sourceFile =
+                SOURCE_DIR.relativize(parsed.getSource()).toString();
+        String nameBase =
+                noExtension(parsed.getSource().getFileName().toString());
+        writePacketClass(parsed.getId(), parsed.getDirectionPipe(), sourceFile,
+                nameBase, fields, parsed.getFields(), constructedPackage);
         writePacketReader(sourceFile, nameBase, fields, parsed.getFields(),
                 constructedPackage);
     }
 
-    private static void writePacketClass(Pipe pipe, String sourceFile,
+    private static void writePacketClass(int id, Pipe pipe, String sourceFile,
             String nameBase, Map<String, TypeName> fields,
             Map<String, PacketPart> fieldParts, String fullPackage) {
         /*
@@ -119,6 +130,10 @@ public final class PacketClassGenerator {
 
         type.addMethod(MethodSpec.constructorBuilder().addModifiers(PUBLIC)
                 .addParameters(parameters).addCode(constrCode.build()).build());
+
+        type.addMethod(MethodSpec.methodBuilder("getId")
+                .addAnnotation(Override.class).addModifiers(PUBLIC)
+                .returns(int.class).addCode("return $L;\n", id).build());
 
         type.addMethod(MethodSpec.methodBuilder("write")
                 .addAnnotation(Override.class).addModifiers(PUBLIC)

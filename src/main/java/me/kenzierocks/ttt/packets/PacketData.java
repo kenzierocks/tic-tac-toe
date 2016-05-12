@@ -1,5 +1,7 @@
 package me.kenzierocks.ttt.packets;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,6 +37,9 @@ public final class PacketData {
                         "The pipe '" + pipeText + "' does not exist.",
                         noSuchEnum);
             }
+            String idText = Optional.ofNullable(props.remove("id")).orElse("");
+            int id = Integer.parseInt(idText);
+            checkArgument(id >= 0, "id cannot be negative");
             ImmutableMap.Builder<String, PacketPart> fields =
                     ImmutableMap.builder();
             props.forEach((k, v) -> {
@@ -52,16 +57,25 @@ public final class PacketData {
                 }
                 fields.put(k, part);
             });
-            return new PacketData(fields.build(), pipe);
+            return new PacketData(source, fields.build(), pipe, id);
         }
     }
 
+    private final Path source;
     private final Map<String, PacketPart> fields;
     private final Pipe directionPipe;
+    private final int id;
 
-    private PacketData(Map<String, PacketPart> fields, Pipe pipe) {
+    private PacketData(Path source, Map<String, PacketPart> fields, Pipe pipe,
+            int id) {
+        this.source = source;
         this.fields = fields;
         this.directionPipe = pipe;
+        this.id = id;
+    }
+
+    public Path getSource() {
+        return source;
     }
 
     public Map<String, PacketPart> getFields() {
@@ -72,10 +86,15 @@ public final class PacketData {
         return directionPipe;
     }
 
+    public int getId() {
+        return id;
+    }
+
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("fields", fields)
-                .add("directionPipe", this.directionPipe).toString();
+        return MoreObjects.toStringHelper(this).add("id", this.id)
+                .add("fields", fields).add("directionPipe", this.directionPipe)
+                .toString();
     }
 
 }
