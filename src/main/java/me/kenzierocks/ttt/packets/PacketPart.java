@@ -1,4 +1,4 @@
-package me.kenzierocks.ttt;
+package me.kenzierocks.ttt.packets;
 
 import java.util.Collections;
 import java.util.HashMap;

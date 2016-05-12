@@ -1,4 +1,4 @@
-package me.kenzierocks.ttt;
+package me.kenzierocks.ttt.packets;
 
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
@@ -18,18 +18,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Preconditions;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.JavaFile.Builder;
+
+import me.kenzierocks.ttt.Util;
+import me.kenzierocks.ttt.packets.PacketData.Pipe;
+
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-
-import me.kenzierocks.ttt.PacketData.Pipe;
-import me.kenzierocks.ttt.packets.Packet;
-import me.kenzierocks.ttt.packets.PacketReader;
 
 public final class PacketClassGenerator {
 
@@ -104,9 +106,15 @@ public final class PacketClassGenerator {
         CodeBlock.Builder writeCode = CodeBlock.builder();
 
         fields.forEach((name, fType) -> {
-            constrCode.addStatement("this.$1L = $1L", name);
+            PacketPart packetPart = fieldParts.get(name);
+            if (packetPart.getJavaType().isPrimitive()) {
+                constrCode.addStatement("this.$1L = $1L", name);
+            } else {
+                constrCode.addStatement("this.$1L = checkNotNull($1L, $2S)",
+                        name, name + " cannot be null");
+            }
             writeCode.addStatement("$L.write$L(this.$L)", dataStreamName,
-                    getDataStreamSuffix(fieldParts.get(name)), name);
+                    getDataStreamSuffix(packetPart), name);
         });
 
         type.addMethod(MethodSpec.constructorBuilder().addModifiers(PUBLIC)
@@ -119,15 +127,23 @@ public final class PacketClassGenerator {
                 .build());
 
         fields.forEach((name, fType) -> {
-            type.addMethod(MethodSpec
-                    .methodBuilder("get" + Util.uppercaseFirstLetter(name))
-                    .addModifiers(PUBLIC).returns(fType)
-                    .addCode("return $L;\n", name).build());
+            type.addMethod(
+                    MethodSpec
+                            .methodBuilder(
+                                    "get" + Util.uppercaseFirstLetter(name))
+                            .addModifiers(PUBLIC).returns(fType)
+                            .addCode("return $L;\n", name).build());
         });
 
-        JavaFile fileWriter = JavaFile.builder(fullPackage, type.build())
-                .indent("....".replace('.', ' ')).skipJavaLangImports(true)
-                .addFileComment(JAVADOC, sourceFile).build();
+        Builder javaFileBuilder = JavaFile.builder(fullPackage, type.build())
+                .indent("....".replace('.', ' ')).skipJavaLangImports(true);
+        if (fieldParts.values().stream().map(PacketPart::getJavaType)
+                .anyMatch(c -> !c.isPrimitive())) {
+            javaFileBuilder.addStaticImport(Preconditions.class,
+                    "checkNotNull");
+        }
+        JavaFile fileWriter =
+                javaFileBuilder.addFileComment(JAVADOC, sourceFile).build();
         try {
             fileWriter.writeTo(TARGET_DIR);
         } catch (IOException e) {

@@ -1,4 +1,4 @@
-package me.kenzierocks.ttt;
+package me.kenzierocks.ttt.packets;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,6 +11,8 @@ import java.util.Optional;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
+
+import me.kenzierocks.ttt.Util;
 
 public final class PacketData {
 
