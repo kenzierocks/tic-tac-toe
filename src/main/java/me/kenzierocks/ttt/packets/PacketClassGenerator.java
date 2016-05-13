@@ -3,6 +3,7 @@ package me.kenzierocks.ttt.packets;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.lang.model.element.Modifier.PUBLIC;
+import static javax.lang.model.element.Modifier.STATIC;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -21,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
@@ -28,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.JavaFile.Builder;
 import com.squareup.javapoet.MethodSpec;
@@ -35,6 +39,7 @@ import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.WildcardTypeName;
 
 import me.kenzierocks.ttt.Util;
 import me.kenzierocks.ttt.packets.PacketData.Pipe;
@@ -65,11 +70,14 @@ public final class PacketClassGenerator {
             BitSet idSet = new BitSet();
             props.values().stream().mapToInt(Integer::parseInt)
                     .forEach(idSet::set);
+            SortedSet<PacketData> packetDefs = new TreeSet<>((pd1, pd2) -> {
+                return pd1.getId() - pd2.getId();
+            });
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(
                     SOURCE_DIR, path -> path.toString().endsWith(".packet"))) {
                 stream.forEach(p -> {
-                    String relativeName =
-                            noExtension(SOURCE_DIR.relativize(p).toString());
+                    String relativeName = Util
+                            .noExtension(SOURCE_DIR.relativize(p).toString());
                     int id = idSet.nextClearBit(0);
                     if (props.containsKey(relativeName)) {
                         id = Integer.parseInt(props.get(relativeName));
@@ -84,9 +92,11 @@ public final class PacketClassGenerator {
                         e.printStackTrace();
                         return;
                     }
+                    packetDefs.add(parsed);
                     createPacketClass(parsed);
                 });
             }
+            createPacketRegistry(packetDefs);
         } finally {
             if (maybeNullProps != null) {
                 try (BufferedWriter writer =
@@ -109,36 +119,26 @@ public final class PacketClassGenerator {
         }
     }
 
-    public static void createPacketClass(PacketData parsed) {
-        String appendPackage =
-                parsed.getDirectionPipe() == Pipe.CLIENT_TO_SERVER ? "c2s"
-                        : "s2c";
-        String constructedPackage = PACKAGE + "." + appendPackage;
+    private static void createPacketClass(PacketData parsed) {
+        String constructedPackage = PACKAGE + "." + parsed.getPackageSuffix();
         Map<String, TypeName> fields = parsed.getFields().entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
                         e -> TypeName.get(e.getValue().getJavaType())));
-        String sourceFile =
-                SOURCE_DIR.relativize(parsed.getSource()).toString();
-        String nameBase =
-                noExtension(parsed.getSource().getFileName().toString());
-        writePacketClass(parsed.getId(), parsed.getDirectionPipe(), sourceFile,
-                nameBase, fields, parsed.getFields(), constructedPackage);
-        writePacketReader(sourceFile, nameBase, fields, parsed.getFields(),
-                constructedPackage);
+        writePacketClass(parsed, fields, constructedPackage);
+        writePacketReader(parsed, fields, constructedPackage);
     }
 
-    private static void writePacketClass(int id, Pipe pipe, String sourceFile,
-            String nameBase, Map<String, TypeName> fields,
-            Map<String, PacketPart> fieldParts, String fullPackage) {
+    private static void writePacketClass(PacketData data,
+            Map<String, TypeName> fields, String fullPackage) {
         /*
          * N.B. in the following method code we loop over `fields` a bunch, we
          * might want to combine them all into one loop for potentially faster
          * code
          */
-        TypeSpec.Builder type = TypeSpec.classBuilder(nameBase + "Packet")
+        TypeSpec.Builder type = TypeSpec.classBuilder(data.getPacketClassName())
                 .addModifiers(PUBLIC, FINAL);
 
-        if (pipe == Pipe.CLIENT_TO_SERVER) {
+        if (data.getDirectionPipe() == Pipe.CLIENT_TO_SERVER) {
             type.addSuperinterface(Packet.Client.class);
         } else {
             type.addSuperinterface(Packet.Server.class);
@@ -158,7 +158,7 @@ public final class PacketClassGenerator {
         CodeBlock.Builder writeCode = CodeBlock.builder();
 
         fields.forEach((name, fType) -> {
-            PacketPart packetPart = fieldParts.get(name);
+            PacketPart packetPart = data.getFields().get(name);
             if (packetPart.getJavaType().isPrimitive()) {
                 constrCode.addStatement("this.$1L = $1L", name);
             } else {
@@ -172,9 +172,10 @@ public final class PacketClassGenerator {
         type.addMethod(MethodSpec.constructorBuilder().addModifiers(PUBLIC)
                 .addParameters(parameters).addCode(constrCode.build()).build());
 
-        type.addMethod(MethodSpec.methodBuilder("getId")
-                .addAnnotation(Override.class).addModifiers(PUBLIC)
-                .returns(int.class).addCode("return $L;\n", id).build());
+        type.addMethod(
+                MethodSpec.methodBuilder("getId").addAnnotation(Override.class)
+                        .addModifiers(PUBLIC).returns(int.class)
+                        .addCode("return $L;\n", data.getId()).build());
 
         type.addMethod(MethodSpec.methodBuilder("write")
                 .addAnnotation(Override.class).addModifiers(PUBLIC)
@@ -191,13 +192,13 @@ public final class PacketClassGenerator {
 
         Builder javaFileBuilder = JavaFile.builder(fullPackage, type.build())
                 .indent("....".replace('.', ' ')).skipJavaLangImports(true);
-        if (fieldParts.values().stream().map(PacketPart::getJavaType)
+        if (data.getFields().values().stream().map(PacketPart::getJavaType)
                 .anyMatch(c -> !c.isPrimitive())) {
             javaFileBuilder.addStaticImport(Preconditions.class,
                     "checkNotNull");
         }
-        JavaFile fileWriter =
-                javaFileBuilder.addFileComment(JAVADOC, sourceFile).build();
+        JavaFile fileWriter = javaFileBuilder
+                .addFileComment(JAVADOC, data.getSource()).build();
         try {
             fileWriter.writeTo(TARGET_DIR);
         } catch (IOException e) {
@@ -205,14 +206,14 @@ public final class PacketClassGenerator {
         }
     }
 
-    private static void writePacketReader(String sourceFile, String nameBase,
-            Map<String, TypeName> fields, Map<String, PacketPart> fieldParts,
-            String fullPackage) {
-        TypeSpec.Builder type = TypeSpec.classBuilder(nameBase + "PacketReader")
-                .addModifiers(PUBLIC, FINAL);
+    private static void writePacketReader(PacketData data,
+            Map<String, TypeName> fields, String fullPackage) {
+        TypeSpec.Builder type =
+                TypeSpec.classBuilder(data.getPacketReaderClassName())
+                        .addModifiers(PUBLIC, FINAL);
 
         ClassName packetClassName =
-                ClassName.get(fullPackage, nameBase + "Packet");
+                ClassName.get(fullPackage, data.getPacketClassName());
         type.addSuperinterface(ParameterizedTypeName
                 .get(ClassName.get(PacketReader.class), packetClassName));
 
@@ -223,7 +224,7 @@ public final class PacketClassGenerator {
         fields.forEach((name, fType) -> {
             writeCode.addStatement("$T $L = $L.$L()", fType, name,
                     dataStreamName,
-                    "read" + getDataStreamSuffix(fieldParts.get(name)));
+                    "read" + getDataStreamSuffix(data.getFields().get(name)));
         });
         writeCode.addStatement("return new $T($L)", packetClassName,
                 String.join(", ", fields.keySet()));
@@ -237,7 +238,55 @@ public final class PacketClassGenerator {
 
         JavaFile fileWriter = JavaFile.builder(fullPackage, type.build())
                 .indent("....".replace('.', ' ')).skipJavaLangImports(true)
-                .addFileComment(JAVADOC, sourceFile).build();
+                .addFileComment(JAVADOC, data.getSource()).build();
+        try {
+            fileWriter.writeTo(TARGET_DIR);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void createPacketRegistry(SortedSet<PacketData> packetDefs) {
+        TypeSpec.Builder type = TypeSpec.classBuilder("PacketRegistry")
+                .addModifiers(PUBLIC, FINAL);
+
+        final String packetReaderIdMap = "packetReaderIdMap";
+        TypeName prWildcard =
+                ParameterizedTypeName.get(ClassName.get(PacketReader.class),
+                        WildcardTypeName.subtypeOf(Object.class));
+        // Integer, PacketReader<?>
+        TypeName[] mapParams = { ClassName.get(Integer.class), prWildcard };
+        ParameterizedTypeName parameterizedTypeName =
+                ParameterizedTypeName.get(ClassName.get(Map.class), mapParams);
+        type.addField(FieldSpec.builder(parameterizedTypeName,
+                packetReaderIdMap, PRIVATE, STATIC, FINAL).build());
+        CodeBlock.Builder staticBlock = CodeBlock.builder();
+        final String immutableBuilder = "immutableBuilder";
+        staticBlock.addStatement("$T $L = $T.builder()",
+                ParameterizedTypeName.get(
+                        ClassName.get(ImmutableMap.Builder.class), mapParams),
+                immutableBuilder, ImmutableMap.class);
+        packetDefs.forEach(pd -> {
+            staticBlock.addStatement("$L.put($L, new $T())", immutableBuilder,
+                    pd.getId(),
+                    ClassName.get(PACKAGE + "." + pd.getPackageSuffix(),
+                            pd.getPacketReaderClassName()));
+        });
+        staticBlock.addStatement("$L = $L.build()", packetReaderIdMap,
+                immutableBuilder);
+
+        type.addStaticBlock(staticBlock.build());
+
+        final String idParam = "id";
+        type.addMethod(MethodSpec.methodBuilder("getReaderById")
+                .addModifiers(PUBLIC, STATIC).returns(prWildcard)
+                .addParameter(int.class, idParam)
+                .addCode("return $L.get($L);\n", packetReaderIdMap, idParam)
+                .build());
+
+        JavaFile fileWriter = JavaFile.builder(PACKAGE, type.build())
+                .indent("....".replace('.', ' ')).skipJavaLangImports(true)
+                .addFileComment(JAVADOC, "scratch").build();
         try {
             fileWriter.writeTo(TARGET_DIR);
         } catch (IOException e) {
@@ -250,10 +299,6 @@ public final class PacketClassGenerator {
             return "UTF";
         }
         return Util.uppercaseFirstLetter(part.name().toLowerCase());
-    }
-
-    private static String noExtension(String fileName) {
-        return fileName.substring(0, fileName.lastIndexOf('.'));
     }
 
 }

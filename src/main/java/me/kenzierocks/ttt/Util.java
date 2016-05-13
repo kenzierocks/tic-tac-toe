@@ -214,4 +214,8 @@ public class Util {
         bw.newLine();
     }
 
+    public static String noExtension(String fileName) {
+        return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
 }

@@ -9,12 +9,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-import com.google.common.base.MoreObjects;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 
 import me.kenzierocks.ttt.Util;
 
-public final class PacketData {
+@AutoValue
+public abstract class PacketData {
 
     public enum Pipe {
         SERVER_TO_CLIENT, CLIENT_TO_SERVER;
@@ -52,44 +53,35 @@ public final class PacketData {
                 }
                 fields.put(k, part);
             });
-            return new PacketData(source, fields.build(), pipe, id);
+            return new AutoValue_PacketData(source,
+                    Util.noExtension(source.getFileName().toString()),
+                    fields.build(), pipe, id);
         }
     }
 
-    private final Path source;
-    private final Map<String, PacketPart> fields;
-    private final Pipe directionPipe;
-    private final int id;
-
-    private PacketData(Path source, Map<String, PacketPart> fields, Pipe pipe,
-            int id) {
-        this.source = source;
-        this.fields = fields;
-        this.directionPipe = pipe;
-        this.id = id;
+    PacketData() {
     }
 
-    public Path getSource() {
-        return source;
+    public abstract Path getSource();
+
+    public abstract String getPacketBaseName();
+
+    public final String getPacketClassName() {
+        return getPacketBaseName().concat("Packet");
     }
 
-    public Map<String, PacketPart> getFields() {
-        return fields;
+    public final String getPacketReaderClassName() {
+        return getPacketBaseName().concat("PacketReader");
     }
 
-    public Pipe getDirectionPipe() {
-        return directionPipe;
+    public final String getPackageSuffix() {
+        return getDirectionPipe() == Pipe.CLIENT_TO_SERVER ? "c2s" : "s2c";
     }
 
-    public int getId() {
-        return id;
-    }
+    public abstract Map<String, PacketPart> getFields();
 
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("id", this.id)
-                .add("fields", fields).add("directionPipe", this.directionPipe)
-                .toString();
-    }
+    public abstract Pipe getDirectionPipe();
+
+    public abstract int getId();
 
 }
