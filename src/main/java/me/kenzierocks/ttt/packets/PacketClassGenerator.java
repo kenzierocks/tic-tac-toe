@@ -103,8 +103,7 @@ public final class PacketClassGenerator {
                                 int id2 = Integer.parseInt(unsorted.get(k2));
                                 return Integer.compare(id1, id2);
                             });
-                    Util.saveProperties(sortedProps, writer,
-                            JAVADOC.replace("$L", "scratch"));
+                    Util.saveProperties(sortedProps, writer, null);
                 }
             }
         }
