@@ -1,7 +1,5 @@
 package me.kenzierocks.ttt.packets;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,7 +20,7 @@ public final class PacketData {
         SERVER_TO_CLIENT, CLIENT_TO_SERVER;
     }
 
-    public static PacketData read(Path source) throws IOException {
+    public static PacketData read(Path source, int id) throws IOException {
         try (BufferedReader reader = Files.newBufferedReader(source)) {
             Map<String, String> props =
                     new HashMap<>(Util.readProperties(reader));
@@ -37,9 +35,6 @@ public final class PacketData {
                         "The pipe '" + pipeText + "' does not exist.",
                         noSuchEnum);
             }
-            String idText = Optional.ofNullable(props.remove("id")).orElse("");
-            int id = Integer.parseInt(idText);
-            checkArgument(id >= 0, "id cannot be negative");
             ImmutableMap.Builder<String, PacketPart> fields =
                     ImmutableMap.builder();
             props.forEach((k, v) -> {
