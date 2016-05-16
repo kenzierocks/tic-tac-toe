@@ -92,6 +92,11 @@
                   <MenuItem mnemonicParsing="false" onAction="#quit" text="Quit" />
             </items>
           </Menu>
+            <Menu mnemonicParsing="false" text="Network">
+              <items>
+                <MenuItem mnemonicParsing="false" onAction="#connectToClient" text="Connect to Client" />
+              </items>
+            </Menu>
         </menus>
       </MenuBar>
    </top>

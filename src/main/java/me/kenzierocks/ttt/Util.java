@@ -7,6 +7,8 @@ import java.io.Writer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
@@ -216,6 +218,15 @@ public class Util {
 
     public static String noExtension(String fileName) {
         return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
+    public static ThreadFactory newDaemonThreadFactory(String baseId) {
+        AtomicInteger threadId = new AtomicInteger();
+        return r -> {
+            Thread t = new Thread(r, baseId + "-" + threadId.getAndIncrement());
+            t.setDaemon(true);
+            return t;
+        };
     }
 
 }
