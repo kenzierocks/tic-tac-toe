@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 public class Main extends Application {
 
     public static Controller CONTROLLER;
+    public static Stage PRIMARY_STAGE;
 
     public static void main(String[] args) {
         launch(args);
@@ -19,6 +20,7 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
+        PRIMARY_STAGE = stage;
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/ttt.fxml"));
         root = loader.load();
         CONTROLLER = loader.getController();

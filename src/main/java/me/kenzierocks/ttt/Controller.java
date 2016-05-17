@@ -15,10 +15,10 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.layout.GridPane;
 import me.kenzierocks.ttt.event.EventBuses;
 import me.kenzierocks.ttt.event.IdentChangeEvent;
@@ -41,24 +41,28 @@ public class Controller {
     private Label oScore;
     @FXML
     private Label idHolder;
+    @FXML
+    private MenuItem connectMenuItem;
     private Game game;
 
     @FXML
     public void connectToClient() {
-        String defaultChoice = "No client";
-        ChoiceDialog<String> clientChooser = new ChoiceDialog<>(defaultChoice,
-                LanClientFinder.getInstance().getClients().keySet().stream()
-                        .map(e -> e.getKey() + " at " + e.getValue())
-                        .collect(Collectors.toList()));
+        List<String> clients = LanClientFinder.getInstance().getClients()
+                .keySet().stream().map(e -> e.getKey() + " at " + e.getValue())
+                .collect(Collectors.toList());
+        if (clients.isEmpty()) {
+            Alert alert = Util.newStandardAlert(AlertType.INFORMATION);
+            alert.setHeaderText("There are no other clients.");
+            alert.showAndWait();
+            return;
+        }
+        ChoiceDialog<String> clientChooser = Util
+                .configureDialog(new ChoiceDialog<>(clients.get(0), clients));
         clientChooser.setTitle("Choose a Client");
         clientChooser.setContentText("Select a client to connect to:");
         clientChooser.setGraphic(null);
         clientChooser.setHeaderText(null);
         clientChooser.showAndWait().ifPresent(s -> {
-            if (s.equals(defaultChoice)) {
-                // ignore
-                return;
-            }
             Matcher matcher = MATCH_INPUT_TEXT.matcher(s);
             checkState(matcher.matches(), "wat is in this argument %s", s);
             LanClientFinder.getInstance()
@@ -70,12 +74,10 @@ public class Controller {
                             /* bail. TODO report this */
                             return;
                         }
-                        System.err.println("AQUIRED SOCKET " + sock);
+                        connectMenuItem.setDisable(true);
                         try {
-                            // lol we don't need a socket.
-                            sock.close();
+                            new NetworkManager(sock);
                         } catch (IOException e1) {
-                            e1.printStackTrace();
                         }
                     });
         });
@@ -92,21 +94,9 @@ public class Controller {
     }
 
     public void quit(Runnable onClose, Runnable onStay) {
-        Dialog<Boolean> dialog = new Dialog<>();
+        Dialog<Boolean> dialog = Util.newOkCancelDialog();
         dialog.setTitle("Confirm Quit");
         dialog.setContentText("Are you sure you want quit?");
-        dialog.setResultConverter(button -> {
-            if (button == ButtonType.CANCEL) {
-                return false;
-            }
-            if (button == ButtonType.OK) {
-                return true;
-            }
-            throw new IllegalArgumentException();
-        });
-        List<ButtonType> buttons = dialog.getDialogPane().getButtonTypes();
-        buttons.add(ButtonType.OK);
-        buttons.add(ButtonType.CANCEL);
         dialog.showAndWait().ifPresent(doQuit -> {
             if (doQuit) {
                 if (onClose != null) {
@@ -146,8 +136,8 @@ public class Controller {
                         label.setText(String.valueOf(game.get(x, y)));
                         if (win != WinState.NEUTRAL) {
                             Platform.runLater(() -> {
-                                Alert alert =
-                                        new Alert(Alert.AlertType.INFORMATION);
+                                Alert alert = Util.newStandardAlert(
+                                        AlertType.INFORMATION);
                                 String text;
                                 if (win == WinState.WIN) {
                                     char currentPlayer =
@@ -212,10 +202,9 @@ public class Controller {
         NetworkInterfaceManager nim = NetworkInterfaceManager.getInstance();
         List<NetworkInterface> interfaces = nim.getInterfaces();
         if (interfaces.isEmpty()) {
-            Alert alert = new Alert(AlertType.ERROR);
-            alert.setContentText(
+            Alert alert = Util.newStandardAlert(AlertType.ERROR);
+            alert.setHeaderText(
                     "You cannot play this game, you have no network.");
-            alert.getButtonTypes().add(ButtonType.OK);
             alert.showAndWait();
             throw new RuntimeException("player had no network");
         }
@@ -224,35 +213,27 @@ public class Controller {
             def = nim.getSelected();
         }
         ChoiceDialog<NetworkInterface> dialog =
-                new ChoiceDialog<>(def, interfaces);
+                Util.configureDialog(new ChoiceDialog<>(def, interfaces));
         dialog.setGraphic(null);
         dialog.setHeaderText(null);
         dialog.showAndWait().ifPresent(nim::select);
     }
 
     public void promptForConnection(String client, String addr, int port) {
-        Dialog<Boolean> dialog = new Dialog<>();
+        Dialog<Boolean> dialog = Util.newOkCancelDialog();
         dialog.setTitle("Incoming Connection");
         dialog.setContentText("Accept incoming connection from " + addr + ":"
                 + port + ", client " + client + "?");
-        dialog.setResultConverter(button -> {
-            if (button == ButtonType.CANCEL) {
-                return false;
-            }
-            if (button == ButtonType.OK) {
-                return true;
-            }
-            throw new IllegalArgumentException();
-        });
-        List<ButtonType> buttons = dialog.getDialogPane().getButtonTypes();
-        buttons.add(ButtonType.OK);
-        buttons.add(ButtonType.CANCEL);
         dialog.showAndWait().ifPresent(doConnect -> {
             if (doConnect) {
+                connectMenuItem.setDisable(true);
                 try {
                     NetworkManager conn = new NetworkManager(addr, port);
-                    conn.getNextPacket().ifPresent(x -> {
-                        System.err.println(x);
+                    Util.runLaterLoop(t -> true, () -> {
+                        conn.getNextPacket().ifPresent(x -> {
+                            System.err.println(x);
+                        });
+                        return null;
                     });
                 } catch (IOException e) {
                     e.printStackTrace();

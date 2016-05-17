@@ -9,9 +9,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -19,8 +22,13 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Labeled;
 
 public class Util {
@@ -253,6 +261,62 @@ public class Util {
             ChangeListener<T> listener) {
         listener.changed(value, null, value.getValue());
         value.addListener(listener);
+    }
+
+    public static <T> void runLaterLoop(Predicate<T> condition,
+            Callable<T> runLaterCode) {
+        Platform.runLater(new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    if (condition.test(runLaterCode.call())) {
+                        Platform.runLater(this);
+                    }
+                } catch (Exception e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+
+        });
+    }
+
+    public static <T extends Dialog<E>, E> T configureDialog(T dialog) {
+        dialog.initOwner(Main.PRIMARY_STAGE);
+        dialog.setOnShown(e -> {
+            Main.PRIMARY_STAGE.setAlwaysOnTop(true);
+            Platform.runLater(() -> Main.PRIMARY_STAGE.setAlwaysOnTop(false));
+        });
+        return dialog;
+    }
+
+    public static <T> Dialog<T> newStandardDialog() {
+        return configureDialog(new Dialog<>());
+    }
+
+    public static Dialog<Boolean> newOkCancelDialog() {
+        Dialog<Boolean> dialog = newStandardDialog();
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.CANCEL) {
+                return false;
+            }
+            if (button == ButtonType.OK) {
+                return true;
+            }
+            throw new IllegalArgumentException();
+        });
+        List<ButtonType> buttons = dialog.getDialogPane().getButtonTypes();
+        buttons.clear();
+        buttons.add(ButtonType.OK);
+        buttons.add(ButtonType.CANCEL);
+        return dialog;
+    }
+
+    public static Alert newStandardAlert(AlertType alertType) {
+        Alert alert = configureDialog(new Alert(alertType));
+        alert.getButtonTypes().clear();
+        alert.getButtonTypes().add(ButtonType.OK);
+        return alert;
     }
 
 }

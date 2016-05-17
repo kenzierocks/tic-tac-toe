@@ -224,9 +224,12 @@ public class LanClientFinder {
                 String targetClient = data.readUTF();
                 if (targetClient.equals(uuid.toString())) {
                     String addr = data.readUTF();
+                    String clientFrom = this.clients.keySet().stream()
+                            .filter(e -> e.getValue().equals(addr)).findFirst()
+                            .get().getKey();
                     int port = data.readInt();
                     Platform.runLater(() -> {
-                        Main.CONTROLLER.promptForConnection(targetClient, addr,
+                        Main.CONTROLLER.promptForConnection(clientFrom, addr,
                                 port);
                     });
                 }

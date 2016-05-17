@@ -2,6 +2,7 @@ package me.kenzierocks.ttt.packets;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Optional;
@@ -18,7 +19,11 @@ public class NetworkManager {
     private final Queue<Packet> writeQueue = new ConcurrentLinkedQueue<>();
 
     public NetworkManager(String address, int port) throws IOException {
-        this.socket = new Socket(address, port);
+        this(new Socket(address, port));
+    }
+
+    public NetworkManager(Socket sock) throws IOException {
+        this.socket = sock;
         this.socketIn = new DataInputStream(this.socket.getInputStream());
         this.socketOut = new DataOutputStream(this.socket.getOutputStream());
         Thread readThread = new Thread(getReadRunnable(), "Reading Thread");
@@ -46,6 +51,12 @@ public class NetworkManager {
         return () -> {
             try {
                 while (!this.socket.isClosed()) {
+                    while (writeQueue.isEmpty()) {
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException ie) {
+                        }
+                    }
                     writePacket(writeQueue.poll());
                 }
             } catch (IOException e) {
@@ -68,8 +79,11 @@ public class NetworkManager {
         return read;
     }
 
-    public Optional<Packet> getNextPacket() {
-        return Optional.of(this.readQueue.poll());
+    public Optional<Packet> getNextPacket() throws EOFException {
+        if (this.socket.isClosed()) {
+            throw new EOFException("no more packets from a closed socket");
+        }
+        return Optional.ofNullable(this.readQueue.poll());
     }
 
 }

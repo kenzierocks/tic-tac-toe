@@ -86,8 +86,8 @@
         <menus>
           <Menu mnemonicParsing="false" text="File">
             <items>
-              <MenuItem mnemonicParsing="false" onAction="#restart" text="Restart" />
-                  <MenuItem mnemonicParsing="false" onAction="#reset" text="Reset" />
+              <MenuItem mnemonicParsing="false" onAction="#restart" text="Restart Game" />
+                  <MenuItem mnemonicParsing="false" onAction="#reset" text="Reset Data" />
                   <SeparatorMenuItem mnemonicParsing="false" />
                   <MenuItem mnemonicParsing="false" onAction="#quit" text="Quit" />
             </items>
@@ -95,7 +95,7 @@
             <Menu mnemonicParsing="false" text="Network">
               <items>
                   <MenuItem mnemonicParsing="false" onAction="#resetId" text="Reset ID" />
-                <MenuItem mnemonicParsing="false" onAction="#connectToClient" text="Connect to Client" />
+                <MenuItem fx:id="connectMenuItem" mnemonicParsing="false" onAction="#connectToClient" text="Connect to Client" />
               </items>
             </Menu>
         </menus>
