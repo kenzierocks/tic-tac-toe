@@ -94,6 +94,7 @@
           </Menu>
             <Menu mnemonicParsing="false" text="Network">
               <items>
+                  <MenuItem mnemonicParsing="false" onAction="#resetId" text="Reset ID" />
                 <MenuItem mnemonicParsing="false" onAction="#connectToClient" text="Connect to Client" />
               </items>
             </Menu>
@@ -101,7 +102,7 @@
       </MenuBar>
    </top>
    <left>
-      <VBox alignment="TOP_CENTER" prefHeight="600.0" prefWidth="166.0" style="-fx-border-color: black;" BorderPane.alignment="CENTER">
+      <VBox alignment="TOP_CENTER" prefHeight="600.0" prefWidth="224.0" style="-fx-border-color: black;" BorderPane.alignment="CENTER">
          <children>
             <Label text="Current Turn: ">
                <VBox.margin>
@@ -123,6 +124,8 @@
                   <Label fx:id="oScore" />
                </children>
             </HBox>
+            <Label text="ID:" />
+            <Label fx:id="idHolder" textAlignment="CENTER" />
          </children>
       </VBox>
    </left>

@@ -1,32 +1,32 @@
 package me.kenzierocks.ttt.packets;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.nio.ByteBuffer;
+import java.net.Socket;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Stream;
 
 public class NetworkManager {
 
-    private static final int LENGTH_OF_LENGTH_PACKET = Integer.BYTES;
-    private static final ThreadLocal<DatagramPacket> LENGTH_PACKET =
-            ThreadLocal.withInitial(() -> {
-                return new DatagramPacket(new byte[LENGTH_OF_LENGTH_PACKET],
-                        LENGTH_OF_LENGTH_PACKET);
-            });
-
-    private final MulticastSocket socket;
+    private final Socket socket;
+    private final DataInputStream socketIn;
+    private final DataOutputStream socketOut;
     private final Queue<Packet> readQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Packet> writeQueue = new ConcurrentLinkedQueue<>();
 
-    public NetworkManager(InetAddress mcAddress, int mcPort)
-            throws IOException {
-        this.socket = new MulticastSocket(mcPort);
-        this.socket.joinGroup(mcAddress);
+    public NetworkManager(String address, int port) throws IOException {
+        this.socket = new Socket(address, port);
+        this.socketIn = new DataInputStream(this.socket.getInputStream());
+        this.socketOut = new DataOutputStream(this.socket.getOutputStream());
+        Thread readThread = new Thread(getReadRunnable(), "Reading Thread");
+        Thread writeThread = new Thread(getWriteRunnable(), "Writing Thread");
+        Stream.of(readThread, writeThread).forEach(t -> {
+            t.setDaemon(true);
+            t.start();
+        });
     }
 
     public Runnable getReadRunnable() {
@@ -42,22 +42,29 @@ public class NetworkManager {
         };
     };
 
+    public Runnable getWriteRunnable() {
+        return () -> {
+            try {
+                while (!this.socket.isClosed()) {
+                    writePacket(writeQueue.poll());
+                }
+            } catch (IOException e) {
+                // TODO report to user
+                e.printStackTrace();
+            }
+        };
+    };
+
+    private void writePacket(Packet packet) throws IOException {
+        int id = packet.getId();
+        this.socketOut.writeInt(id);
+        packet.write(this.socketOut);
+    }
+
     private Packet readPacket() throws IOException {
-        // Datagram packets are weird...
-        // We'll read a length, then read the packet based on the length
-        DatagramPacket lengthPacket = LENGTH_PACKET.get();
-        this.socket.receive(lengthPacket);
-        ByteBuffer data = ByteBuffer.wrap(lengthPacket.getData());
-        int length = data.getInt(0);
-        // TODO length checks?
-        DatagramPacket realPacket =
-                new DatagramPacket(new byte[length], length);
-        // First 4 bytes are the ID
-        data = ByteBuffer.wrap(realPacket.getData());
-        int id = data.getInt(0);
+        int id = this.socketIn.readInt();
         PacketReader<?> reader = PacketRegistry.getReaderById(id);
-        Packet read = reader.read(new DataInputStream(
-                new ByteArrayInputStream(realPacket.getData(), 4, length - 4)));
+        Packet read = reader.read(this.socketIn);
         return read;
     }
 

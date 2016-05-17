@@ -4,6 +4,9 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -13,8 +16,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.control.Labeled;
 
 public class Util {
@@ -227,6 +233,26 @@ public class Util {
             t.setDaemon(true);
             return t;
         };
+    }
+
+    private static final Path CONFIG_DIR = Paths
+            .get(System.getProperty("user.home"), ".config", "tic-tac-toe");
+
+    public static Path getConfigDir() {
+        if (!Files.exists(CONFIG_DIR)) {
+            try {
+                Files.createDirectories(CONFIG_DIR);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return CONFIG_DIR;
+    }
+
+    public static <T> void addListenerFireInitial(ObservableValue<T> value,
+            ChangeListener<T> listener) {
+        listener.changed(value, null, value.getValue());
+        value.addListener(listener);
     }
 
 }
